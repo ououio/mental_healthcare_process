@@ -3,6 +3,7 @@ CSV前処理スクリプト
 チャット履歴を会話単位に整形し、分析用CSVを生成する。
 """
 import re
+import json
 from collections import deque
 import pandas as pd
 import config
@@ -32,6 +33,16 @@ def create_record(s, reply_row, count):
         effective_parent = s['current']
     else:
         effective_parent = 'Unknown'
+
+    orchestrator_result = ''
+    raw_val = s.get('orchestrator_raw')
+    if isinstance(raw_val, str) and raw_val.strip():
+        try:
+            parsed = json.loads(raw_val)
+            orchestrator_result = json.dumps(parsed, ensure_ascii=False)
+        except (json.JSONDecodeError, ValueError):
+            orchestrator_result = raw_val
+
     return {
         'session_id': f'S{count:03d}',
         'userId': s['user_id'],
@@ -39,7 +50,8 @@ def create_record(s, reply_row, count):
         'persona': effective_parent,
         'replyType': reply_row['action'],
         'userInput': s['input'],
-        'replyText': reply_row['replyText']
+        'replyText': reply_row['replyText'],
+        'orchestratorRaw': orchestrator_result
     }
 
 
@@ -54,7 +66,8 @@ for i in range(len(df_chat)):
             'current': row['currentParent'],
             'current_reply': None,
             'interrupt_reply': None,
-            'user_id': row['userId']
+            'user_id': row['userId'],
+            'orchestrator_raw': row['orchestratorRaw']
         }
         orchestrator_queue.append(p_id)
 
